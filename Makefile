@@ -19,6 +19,9 @@ clean:
 build:
 	mkdir build
 
+test: all
+	./run_tests.sh
+
 # TODO: Decide whether to keep
 # FILESYSTEM ?= /home/ben/cheri/output/rootfs-riscv64-hybrid/root/installed-binaries
 # .PHONY: loadfiles
