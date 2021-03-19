@@ -2,10 +2,11 @@
  * Contains a call to the new instruction.
  */
 
+#include "_preamble.S"
 
- .text
- .global _start
- _start:
+.text
+.global _start
+_start:
 
     # Store the stack pointer in ca0 (doesn't really matter where that is
     # right now because it's currently a no-op)
@@ -19,24 +20,12 @@
 
     # Spin until exit
 1:  j 1b
-    
-/**
- * Data section: Where non-const data goes
- */
+
+
 .data
 
 /**
  * Used because we need a capability to something.
  */
 some_data:
-    .dword 0
-
-.align 6
-.global tohost
-tohost:
-    .dword 0
-
-.align 6
-.global fromhost
-fromhost:
     .dword 0
