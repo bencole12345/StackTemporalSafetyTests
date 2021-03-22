@@ -1,18 +1,34 @@
 SDK = /home/ben/cheri/output/sdk
 
-CC = $(SDK)/utils/cheribsd-riscv64-clang
-CFLAGS = -O0 -gdwarf-5 \
+CC_BAREMETAL = $(SDK)/utils/cheribsd-riscv64-clang
+CFLAGS_BAREMETAL = -O0 -gdwarf-5 \
 	-target riscv64-unknown-freebsd \
 	-march=rv64gcxcheri -mabi=lp64 \
 	-Wl,-Tlinker.ld \
 	-fuse-ld=lld -nostdlib -nostartfiles -mno-relax -static
 
-all: build/BreathingTest \
-	 build/ContainsNewInstruction \
-	 build/CorrectLifetimeOrientations
+CC_USERSPACE = $(SDK)/utils/cheribsd-riscv64-purecap-clang
+CFLAGS_USERSPACE = -O0
 
-build/%: tests/%.S build
-	$(CC) $(CFLAGS) -o $@ $<
+BAREMETAL_BUILD_DIR = build/baremetal
+BAREMETAL_SRC_DIR = tests/baremetal
+USERSPACE_BUILD_DIR = build/userspace
+USERSPACE_SRC_DIR = tests/userspace
+
+BAREMETAL_TESTS = $(BAREMETAL_BUILD_DIR)/BreathingTest \
+				  $(BAREMETAL_BUILD_DIR)/ContainsNewInstruction \
+				  $(BAREMETAL_BUILD_DIR)/CorrectLifetimeOrientations
+
+USERSPACE_TESTS = $(USERSPACE_BUILD_DIR)/HelloWorld
+
+.PHONY: all
+all: $(BAREMETAL_TESTS) $(USERSPACE_TESTS)
+
+$(BAREMETAL_BUILD_DIR)/%: $(BAREMETAL_SRC_DIR)/%.S $(BAREMETAL_BUILD_DIR)
+	$(CC_BAREMETAL) $(CFLAGS_BAREMETAL) -o $@ $<
+
+$(USERSPACE_BUILD_DIR)/%: $(USERSPACE_SRC_DIR)/%.c $(USERSPACE_BUILD_DIR)
+	$(CC_USERSPACE) $(CFLAGS_USERSPACE) -o $@ $<
 
 .PHONY: clean
 clean:
@@ -21,13 +37,19 @@ clean:
 build:
 	mkdir build
 
+$(BAREMETAL_BUILD_DIR): build
+	mkdir -p $(BAREMETAL_BUILD_DIR)
+
+$(USERSPACE_BUILD_DIR): build
+	mkdir -p $(USERSPACE_BUILD_DIR)
+
 test: all
 	./run_tests.sh
 
-# TODO: Decide whether to keep
-# FILESYSTEM ?= /home/ben/cheri/output/rootfs-riscv64-hybrid/root/installed-binaries
-# .PHONY: loadfiles
-# loadfiles: all
-# 	cp build/HelloWorldTest $(FILESYSTEM)
-# 	cp build/pte-bits $(FILESYSTEM)
-# 	cp build/CheckStoreCapCapLifetimesTest $(FILESYSTEM)
+# This stuff is just for copying the built binaries to QEMU
+FILESYSTEM = /home/ben/cheri/output/rootfs-riscv64-purecap
+
+.PHONY: copy-to-emulator
+copy-to-emulator: all
+	mkdir $(FILESYSTEM)/root/tests
+	cp $(USERSPACE_BUILD_DIR)/* $(FILESYSTEM)/root/tests
