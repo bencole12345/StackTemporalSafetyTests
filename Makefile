@@ -7,7 +7,9 @@ CFLAGS = -O0 -gdwarf-5 \
 	-Wl,-Tlinker.ld \
 	-fuse-ld=lld -nostdlib -nostartfiles -mno-relax -static
 
-all: build/BreathingTest build/ContainsNewInstruction
+all: build/BreathingTest \
+	 build/ContainsNewInstruction \
+	 build/CorrectLifetimeOrientations
 
 build/%: tests/%.S build
 	$(CC) $(CFLAGS) -o $@ $<
