@@ -62,13 +62,13 @@ asm-s: $(userspace_asm_s_files)
 asm-binaries: $(userspace_asm_binaries)
 
 
-# COPYING TO EMULATOR
+# COPYING TO QEMU
 # -----------------------------------------------------------------------------
 
 FILESYSTEM = /home/ben/cheri/output/rootfs-riscv64-purecap
 
-.PHONY: copy-to-emulator
-copy-to-emulator: all
+.PHONY: copy-to-qemu
+copy-to-qemu: all
 	mkdir -p $(FILESYSTEM)/root/tests
 	mkdir -p $(FILESYSTEM)/root/tests_c
 	mkdir -p $(FILESYSTEM)/root/tests_asm
@@ -83,6 +83,6 @@ copy-to-emulator: all
 clean:
 	rm -rf build
 
-.PHONY: test
-test: all
-	./run_tests.sh
+.PHONY: test-baremetal
+test-baremetal: all
+	scripts/run_baremetal_tests.sh
