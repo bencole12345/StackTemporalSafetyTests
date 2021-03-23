@@ -19,7 +19,8 @@ BAREMETAL_TESTS = $(BAREMETAL_BUILD_DIR)/BreathingTest \
 				  $(BAREMETAL_BUILD_DIR)/ContainsNewInstruction \
 				  $(BAREMETAL_BUILD_DIR)/CorrectLifetimeOrientations
 
-USERSPACE_TESTS = $(USERSPACE_BUILD_DIR)/HelloWorld
+USERSPACE_TESTS = $(USERSPACE_BUILD_DIR)/HelloWorld \
+				  $(USERSPACE_BUILD_DIR)/LifetimesTest
 
 .PHONY: all
 all: $(BAREMETAL_TESTS) $(USERSPACE_TESTS)
@@ -29,6 +30,18 @@ $(BAREMETAL_BUILD_DIR)/%: $(BAREMETAL_SRC_DIR)/%.S $(BAREMETAL_BUILD_DIR)
 
 $(USERSPACE_BUILD_DIR)/%: $(USERSPACE_SRC_DIR)/%.c $(USERSPACE_BUILD_DIR)
 	$(CC_USERSPACE) $(CFLAGS_USERSPACE) -o $@ $<
+
+asm:
+	mkdir -p asm
+
+asm/%.S: $(USERSPACE_SRC_DIR)/%.c asm
+	$(CC_USERSPACE) -S -o $@ $<
+
+build_asm:
+	mkdir -p build_asm
+
+build_asm/%: asm/%.S build_asm
+	$(CC_USERSPACE) -o $@ $<
 
 .PHONY: clean
 clean:
@@ -51,5 +64,8 @@ FILESYSTEM = /home/ben/cheri/output/rootfs-riscv64-purecap
 
 .PHONY: copy-to-emulator
 copy-to-emulator: all
-	mkdir $(FILESYSTEM)/root/tests
-	cp $(USERSPACE_BUILD_DIR)/* $(FILESYSTEM)/root/tests
+	mkdir -p $(FILESYSTEM)/root/tests
+	mkdir -p $(FILESYSTEM)/root/tests_c
+	mkdir -p $(FILESYSTEM)/root/tests_asm
+	cp $(USERSPACE_BUILD_DIR)/* $(FILESYSTEM)/root/tests_c
+	cp build_asm/* $(FILESYSTEM)/root/tests_asm
