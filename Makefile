@@ -15,13 +15,13 @@ BAREMETAL_BUILD_DIR = build/baremetal
 USERSPACE_SRC_DIR = tests/userspace
 USERSPACE_BUILD_DIR = build/userspace
 ASM_DIR = $(USERSPACE_BUILD_DIR)/asm
+LLVM_IR_DIR = $(USERSPACE_BUILD_DIR)/llvm-ir
 
 # The files to compile
 srcs_baremetal = $(wildcard $(BAREMETAL_SRC_DIR)/*.S)
 srcs_userspace = $(wildcard $(USERSPACE_SRC_DIR)/*.c)
 
 # The binaries to create
-# TODO: Get rid of _preamble.S
 baremetal_binaries := $(addprefix $(BAREMETAL_BUILD_DIR)/, $(basename $(notdir $(srcs_baremetal))))
 userspace_binaries := $(addprefix $(USERSPACE_BUILD_DIR)/, $(basename $(notdir $(srcs_userspace))))
 
@@ -59,7 +59,20 @@ $(userspace_asm_binaries): $(ASM_DIR)/%: $(ASM_DIR)/%.S
 asm-s: $(userspace_asm_s_files)
 
 .PHONY: asm-binaries
-asm-binaries: $(userspace_asm_binaries)
+asm-binaries: $(userspace_asm_binaries) asm-s
+
+
+# GENERATING LLVM IR FILES
+# -----------------------------------------------------------------------------
+
+userspace_llvm_ir_files = $(addsuffix .ll, $(addprefix $(LLVM_IR_DIR)/, $(basename $(notdir $(srcs_userspace)))))
+
+$(userspace_llvm_ir_files): $(LLVM_IR_DIR)/%.ll: $(USERSPACE_SRC_DIR)/%.c
+	@mkdir -p $(LLVM_IR_DIR)
+	$(CC_USERSPACE) $(CFLAGS_USERSPACE) -S -emit-llvm $< -o $@
+
+.PHONY: llvm-ir
+llvm-ir: $(userspace_llvm_ir_files)
 
 
 # COPYING TO QEMU
@@ -68,7 +81,7 @@ asm-binaries: $(userspace_asm_binaries)
 FILESYSTEM = /home/ben/cheri/output/rootfs-riscv64-purecap
 
 .PHONY: copy-to-qemu
-copy-to-qemu: all
+copy-to-qemu: all asm-binaries
 	mkdir -p $(FILESYSTEM)/root/tests
 	mkdir -p $(FILESYSTEM)/root/tests_c
 	mkdir -p $(FILESYSTEM)/root/tests_asm
