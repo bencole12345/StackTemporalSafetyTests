@@ -1,4 +1,4 @@
-SDK = /home/ben/cheri/output/sdk
+SDK := /home/ben/cheri/output/sdk
 
 CC_BAREMETAL = $(SDK)/utils/cheribsd-riscv64-clang
 CFLAGS_BAREMETAL = -O0 -gdwarf-5 \
@@ -8,7 +8,9 @@ CFLAGS_BAREMETAL = -O0 -gdwarf-5 \
 	-fuse-ld=lld -nostdlib -nostartfiles -mno-relax -static
 
 CC_USERSPACE = $(SDK)/utils/cheribsd-riscv64-purecap-clang
-CFLAGS_USERSPACE = -O0
+CFLAGS_USERSPACE = -O0 -mllvm -enable-stack-temporal-safety-mitigations
+
+OPT = $(SDK)/bin/opt
 
 BAREMETAL_SRC_DIR = tests/baremetal
 BAREMETAL_BUILD_DIR = build/baremetal
@@ -65,14 +67,18 @@ asm-binaries: $(userspace_asm_binaries) asm-s
 # GENERATING LLVM IR FILES
 # -----------------------------------------------------------------------------
 
-userspace_llvm_ir_files = $(addsuffix .ll, $(addprefix $(LLVM_IR_DIR)/, $(basename $(notdir $(srcs_userspace)))))
+userspace_llvm_ir_before_pass_files = $(addsuffix _BeforePass.ll, $(addprefix $(LLVM_IR_DIR)/, $(basename $(notdir $(srcs_userspace)))))
+userspace_llvm_ir_after_pass_files = $(addsuffix _AfterPass.ll, $(addprefix $(LLVM_IR_DIR)/, $(basename $(notdir $(srcs_userspace)))))
 
-$(userspace_llvm_ir_files): $(LLVM_IR_DIR)/%.ll: $(USERSPACE_SRC_DIR)/%.c
+$(userspace_llvm_ir_before_pass_files): $(LLVM_IR_DIR)/%_BeforePass.ll: $(USERSPACE_SRC_DIR)/%.c
 	@mkdir -p $(LLVM_IR_DIR)
 	$(CC_USERSPACE) $(CFLAGS_USERSPACE) -S -emit-llvm $< -o $@
 
+$(userspace_llvm_ir_after_pass_files): $(LLVM_IR_DIR)/%.ll: $(userspace_llvm_ir_before_pass_files)
+	$(OPT) -S --cheri-insert-lifetime-checks $< > $@
+
 .PHONY: llvm-ir
-llvm-ir: $(userspace_llvm_ir_files)
+llvm-ir: $(userspace_llvm_ir_before_pass_files) $(userspace_llvm_ir_after_pass_files)
 
 
 # COPYING TO QEMU
