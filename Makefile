@@ -8,7 +8,9 @@ CFLAGS_BAREMETAL = -O0 -gdwarf-5 \
 	-fuse-ld=lld -nostdlib -nostartfiles -mno-relax -static
 
 CC_USERSPACE = $(SDK)/utils/cheribsd-riscv64-purecap-clang
-CFLAGS_USERSPACE = -O0 -mllvm -enable-stack-temporal-safety-mitigations
+CFLAGS_USERSPACE = -O2 \
+	-mllvm -enable-stack-temporal-safety-mitigations \
+	-mllvm -do-escape-analysis-for-lifetime-checks
 
 OPT = $(SDK)/bin/opt
 
@@ -28,7 +30,7 @@ baremetal_binaries := $(addprefix $(BAREMETAL_BUILD_DIR)/, $(basename $(notdir $
 userspace_binaries := $(addprefix $(USERSPACE_BUILD_DIR)/, $(basename $(notdir $(srcs_userspace))))
 
 .PHONY: all
-all: $(baremetal_binaries) $(userspace_binaries)
+all: $(baremetal_binaries) $(userspace_binaries) asm-s asm-binaries llvm-ir
 
 
 # COMPILATION
@@ -67,14 +69,16 @@ asm-binaries: $(userspace_asm_binaries) asm-s
 # GENERATING LLVM IR FILES
 # -----------------------------------------------------------------------------
 
-userspace_llvm_ir_before_pass_files = $(addsuffix _BeforePass.ll, $(addprefix $(LLVM_IR_DIR)/, $(basename $(notdir $(srcs_userspace)))))
-userspace_llvm_ir_after_pass_files = $(addsuffix _AfterPass.ll, $(addprefix $(LLVM_IR_DIR)/, $(basename $(notdir $(srcs_userspace)))))
+userspace_llvm_ir_before_pass_files = $(addsuffix _BeforePass.ll, \
+	$(addprefix $(LLVM_IR_DIR)/, $(basename $(notdir $(srcs_userspace)))))
+userspace_llvm_ir_after_pass_files = $(addsuffix _AfterPass.ll, \
+	$(addprefix $(LLVM_IR_DIR)/, $(basename $(notdir $(srcs_userspace)))))
 
 $(userspace_llvm_ir_before_pass_files): $(LLVM_IR_DIR)/%_BeforePass.ll: $(USERSPACE_SRC_DIR)/%.c
 	@mkdir -p $(LLVM_IR_DIR)
 	$(CC_USERSPACE) $(CFLAGS_USERSPACE) -S -emit-llvm $< -o $@
 
-$(userspace_llvm_ir_after_pass_files): $(LLVM_IR_DIR)/%.ll: $(userspace_llvm_ir_before_pass_files)
+$(userspace_llvm_ir_after_pass_files): $(LLVM_IR_DIR)/%_AfterPass.ll: $(LLVM_IR_DIR)/%_BeforePass.ll
 	$(OPT) -S --cheri-insert-lifetime-checks $< > $@
 
 .PHONY: llvm-ir
