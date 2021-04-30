@@ -21,28 +21,37 @@ USERSPACE_BUILD_DIR = build/userspace
 ASM_DIR = $(USERSPACE_BUILD_DIR)/asm
 LLVM_IR_DIR = $(USERSPACE_BUILD_DIR)/llvm-ir
 
-# The files to compile
+# The files to compile
 srcs_baremetal = $(wildcard $(BAREMETAL_SRC_DIR)/*.S)
 srcs_userspace = $(wildcard $(USERSPACE_SRC_DIR)/*.c)
 
 # The binaries to create
 baremetal_binaries := $(addprefix $(BAREMETAL_BUILD_DIR)/, $(basename $(notdir $(srcs_baremetal))))
 userspace_binaries := $(addprefix $(USERSPACE_BUILD_DIR)/, $(basename $(notdir $(srcs_userspace))))
+native_binaries := $(addprefix $(NATIVE_BUILD_DIR)/, $(basename $(notdir $(srcs_userspace))))
 
 .PHONY: all
-all: $(baremetal_binaries) $(userspace_binaries) asm-s asm-binaries llvm-ir
+all: baremetal userspace native asm-s asm-binaries llvm-ir
 
-
-# COMPILATION
+# BASIC COMPILATION
 # -----------------------------------------------------------------------------
 
-$(baremetal_binaries): $(srcs_baremetal)
+$(BAREMETAL_BUILD_DIR)/%: tests/baremetal/%.S
 	@mkdir -p $(BAREMETAL_BUILD_DIR)
 	$(CC_BAREMETAL) $(CFLAGS_BAREMETAL) $< -o $@
 
-$(userspace_binaries): $(srcs_userspace)
+$(USERSPACE_BUILD_DIR)/%: tests/userspace/%.c
 	@mkdir -p $(USERSPACE_BUILD_DIR)
 	$(CC_USERSPACE) $(CFLAGS_USERSPACE) $< -o $@
+
+$(NATIVE_BUILD_DIR)/%: tests/userspace/%.c
+	@mkdir -p $(NATIVE_BUILD_DIR)
+	$(CC) -O0 -fno-stack-protector $< -o $@
+
+.PHONY: baremetal userspace native
+baremetal: $(baremetal_binaries)
+userspace: $(userspace_binaries)
+native: $(native_binaries)
 
 
 # FIDDLING WITH INTERMEDIATE .S FILES
@@ -109,3 +118,7 @@ clean:
 .PHONY: test-baremetal
 test-baremetal: all
 	scripts/run_baremetal_tests.sh
+
+# Uncomment if you wanna see all variables printed (for debugging this Makefile!)
+#$(foreach v, $(.VARIABLES), $(info $(v) = $($(v))))
+
