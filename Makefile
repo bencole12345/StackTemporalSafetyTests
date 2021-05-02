@@ -20,18 +20,23 @@ USERSPACE_SRC_DIR = tests/userspace
 USERSPACE_BUILD_DIR = build/userspace
 ASM_DIR = $(USERSPACE_BUILD_DIR)/asm
 LLVM_IR_DIR = $(USERSPACE_BUILD_DIR)/llvm-ir
+NATIVE_BUILD_DIR = $(USERSPACE_BUILD_DIR)/native
 
 # The files to compile
 srcs_baremetal = $(wildcard $(BAREMETAL_SRC_DIR)/*.S)
 srcs_userspace = $(wildcard $(USERSPACE_SRC_DIR)/*.c)
+srcs_userspace_cpp = $(wildcard $(USERSPACE_SRC_DIR)/*.cpp)
 
 # The binaries to create
 baremetal_binaries := $(addprefix $(BAREMETAL_BUILD_DIR)/, $(basename $(notdir $(srcs_baremetal))))
 userspace_binaries := $(addprefix $(USERSPACE_BUILD_DIR)/, $(basename $(notdir $(srcs_userspace))))
+# TODO: Build these too
+userspace_cpp_binaries := $(addprefix $(USERSPACE_BUILD_DIR)/, $(basename $(notdir $(srcs_userspace_cpp))))
 native_binaries := $(addprefix $(NATIVE_BUILD_DIR)/, $(basename $(notdir $(srcs_userspace))))
+native_cpp_binaries := $(addprefix $(NATIVE_BUILD_DIR)/, $(basename $(notdir $(srcs_userspace_cpp))))
 
 .PHONY: all
-all: baremetal userspace native asm-s asm-binaries llvm-ir
+all: baremetal userspace native native-cpp asm-s asm-binaries llvm-ir
 
 # BASIC COMPILATION
 # -----------------------------------------------------------------------------
@@ -48,11 +53,15 @@ $(NATIVE_BUILD_DIR)/%: tests/userspace/%.c
 	@mkdir -p $(NATIVE_BUILD_DIR)
 	$(CC) -O0 -fno-stack-protector $< -o $@
 
-.PHONY: baremetal userspace native
+$(NATIVE_BUILD_DIR)/%: tests/userspace/%.cpp
+	@mkdir -p $(NATIVE_BUILD_DIR)
+	$(CXX) -O0 -fno-stack-protector $< -o $@
+
+.PHONY: baremetal userspace native native-cpp
 baremetal: $(baremetal_binaries)
 userspace: $(userspace_binaries)
 native: $(native_binaries)
-
+native-cpp: $(native_cpp_binaries)
 
 # FIDDLING WITH INTERMEDIATE .S FILES
 # -----------------------------------------------------------------------------
