@@ -9,6 +9,7 @@ typedef struct object {
     struct object *ptr;
 } object;
 
+__attribute__((noinline))
 void callee(object *callerObj)
 {
     object calleeObj;
