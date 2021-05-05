@@ -5,6 +5,8 @@
 
 #include "debug.h"
 
+#include <stdio.h>
+
 typedef struct object {
     struct object *ptr;
 } object;
@@ -19,6 +21,9 @@ void callee(object *callerObj)
     __asm("# Doing the store");
     callerObj->ptr = &calleeObj;
     __asm("# Store complete");
+
+    printf("Store complete!\n");
+    printf("callerObj->ptr = %p\n", callerObj->ptr);
 }
 
 int main(int argc, char **argv)
