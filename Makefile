@@ -97,7 +97,7 @@ $(userspace_llvm_ir_before_pass_files): $(LLVM_IR_DIR)/%_BeforePass.ll: $(USERSP
 	$(CC_USERSPACE) $(CFLAGS_USERSPACE) -S -emit-llvm $< -o $@
 
 $(userspace_llvm_ir_after_pass_files): $(LLVM_IR_DIR)/%_AfterPass.ll: $(LLVM_IR_DIR)/%_BeforePass.ll
-	$(OPT) -S --cheri-insert-lifetime-checks $< > $@
+	$(OPT) -S --cheri-cap-derived-lifetimes $< > $@
 
 .PHONY: llvm-ir
 llvm-ir: $(userspace_llvm_ir_before_pass_files) $(userspace_llvm_ir_after_pass_files)
