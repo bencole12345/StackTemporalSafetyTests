@@ -22,10 +22,17 @@ ASM_DIR = $(USERSPACE_BUILD_DIR)/asm
 LLVM_IR_DIR = $(USERSPACE_BUILD_DIR)/llvm-ir
 NATIVE_BUILD_DIR = $(USERSPACE_BUILD_DIR)/native
 
+MICROBENCHMARKS_SRC_DIR = microbenchmarks
+MICROBENCHMARKS_BUILD_DIR = $(USERSPACE_BUILD_DIR)/microbenchmarks
+MICROBENCHMARKS_BASELINE_BINARIES_DIR = $(MICROBENCHMARKS_BUILD_DIR)/baseline
+MICROBENCHMARKS_CDL_NOESCAPEANALYSIS_DIR = $(MICROBENCHMARKS_BUILD_DIR)/cdl-noescapeanalysis
+MICROBENCHMARKS_CDL_WITHESCAPEANALYSIS_DIR = $(MICROBENCHMARKS_BUILD_DIR)/cdl-withescapeanalysis
+
 # The files to compile
 srcs_baremetal = $(wildcard $(BAREMETAL_SRC_DIR)/*.S)
 srcs_userspace = $(wildcard $(USERSPACE_SRC_DIR)/*.c)
 srcs_userspace_cpp = $(wildcard $(USERSPACE_SRC_DIR)/*.cpp)
+srcs_microbenchmarks = $(wildcard $(MICROBENCHMARKS_SRC_DIR)/*.c)
 
 # The binaries to create
 baremetal_binaries := $(addprefix $(BAREMETAL_BUILD_DIR)/, $(basename $(notdir $(srcs_baremetal))))
@@ -35,8 +42,12 @@ userspace_cpp_binaries := $(addprefix $(USERSPACE_BUILD_DIR)/, $(basename $(notd
 native_binaries := $(addprefix $(NATIVE_BUILD_DIR)/, $(basename $(notdir $(srcs_userspace))))
 native_cpp_binaries := $(addprefix $(NATIVE_BUILD_DIR)/, $(basename $(notdir $(srcs_userspace_cpp))))
 
+microbenchmark_baseline_binaries := $(addprefix $(MICROBENCHMARKS_BASELINE_BINARIES_DIR)/, $(basename $(notdir $(srcs_microbenchmarks))))
+microbenchmark_cdl_noescapeanalysis_binaries := $(addprefix $(MICROBENCHMARKS_CDL_NOESCAPEANALYSIS_DIR)/, $(basename $(notdir $(srcs_microbenchmarks))))
+microbenchmark_cdl_withescapeanalysis_binaries := $(addprefix $(MICROBENCHMARKS_CDL_WITHESCAPEANALYSIS_DIR)/, $(basename $(notdir $(srcs_microbenchmarks))))
+
 .PHONY: all
-all: baremetal userspace native native-cpp asm-s asm-binaries llvm-ir
+all: baremetal userspace native native-cpp asm-s asm-binaries llvm-ir microbenchmarks
 
 # BASIC COMPILATION
 # -----------------------------------------------------------------------------
@@ -57,11 +68,29 @@ $(NATIVE_BUILD_DIR)/%: tests/userspace/%.cpp
 	@mkdir -p $(NATIVE_BUILD_DIR)
 	$(CXX) -O0 -fno-stack-protector $< -o $@
 
+$(MICROBENCHMARKS_BASELINE_BINARIES_DIR)/%: microbenchmarks/%.c
+	@mkdir -p $(MICROBENCHMARKS_BASELINE_BINARIES_DIR)
+	$(CC_USERSPACE) -O0 -fno-stack-protector $< -o $@
+
+$(MICROBENCHMARKS_CDL_NOESCAPEANALYSIS_DIR)/%: microbenchmarks/%.c
+	@mkdir -p $(MICROBENCHMARKS_CDL_NOESCAPEANALYSIS_DIR)
+	$(CC_USERSPACE) -O0 -fno-stack-protector -mllvm -enable-stack-temporal-safety-mitigations $< -o $@
+
+$(MICROBENCHMARKS_CDL_WITHESCAPEANALYSIS_DIR)/%: microbenchmarks/%.c
+	@mkdir -p $(MICROBENCHMARKS_CDL_WITHESCAPEANALYSIS_DIR)
+	$(CC_USERSPACE) -O0 -fno-stack-protector -mllvm -enable-stack-temporal-safety-mitigations -mllvm -do-escape-analysis-for-lifetime-checks $< -o $@
+
 .PHONY: baremetal userspace native native-cpp
 baremetal: $(baremetal_binaries)
 userspace: $(userspace_binaries)
 native: $(native_binaries)
 native-cpp: $(native_cpp_binaries)
+
+.PHONY: microbenchmarks
+microbenchmarks: \
+	$(microbenchmark_baseline_binaries) \
+	$(microbenchmark_cdl_noescapeanalysis_binaries) \
+	$(microbenchmark_cdl_withescapeanalysis_binaries)
 
 # FIDDLING WITH INTERMEDIATE .S FILES
 # -----------------------------------------------------------------------------
